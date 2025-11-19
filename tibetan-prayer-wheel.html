@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tibetan Prayer Wheel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e8ba3 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({
+            canvas: document.getElementById('canvas'),
+            antialias: true,
+            alpha: true
+        });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        // Camera position
+        camera.position.set(0, 0, 8);
+        camera.lookAt(0, 0, 0);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight1.position.set(5, 5, 5);
+        directionalLight1.castShadow = true;
+        scene.add(directionalLight1);
+
+        const directionalLight2 = new THREE.DirectionalLight(0xffd700, 0.4);
+        directionalLight2.position.set(-5, 3, -5);
+        scene.add(directionalLight2);
+
+        const pointLight = new THREE.PointLight(0xffffcc, 0.5);
+        pointLight.position.set(0, 5, 3);
+        scene.add(pointLight);
+
+        // Create prayer wheel group
+        const prayerWheel = new THREE.Group();
+
+        // Create Tibetan mantra texture using canvas
+        function createMantraTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            // Create gradient background (gold to bronze)
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#d4af37');
+            gradient.addColorStop(0.5, '#c9a961');
+            gradient.addColorStop(1, '#8b6914');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Add decorative borders
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+            ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+            // Add ornate pattern
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(i, 30);
+                ctx.lineTo(i + 20, 45);
+                ctx.lineTo(i + 40, 30);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(i, canvas.height - 30);
+                ctx.lineTo(i + 20, canvas.height - 45);
+                ctx.lineTo(i + 40, canvas.height - 30);
+                ctx.stroke();
+            }
+
+            // Draw Tibetan-style text (Om Mani Padme Hum representation)
+            ctx.fillStyle = '#8B0000';
+            ctx.font = 'bold 80px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const mantra = 'ॐ मणि पद्मे हूँ';
+            const symbols = ['ॐ', '☸', '卍', '༄', '࿐'];
+
+            // Repeat mantra around the wheel
+            for (let i = 0; i < 8; i++) {
+                const x = (i * canvas.width / 8) + (canvas.width / 16);
+
+                // Main mantra text
+                ctx.save();
+                ctx.fillStyle = '#8B0000';
+                ctx.shadowColor = '#FFD700';
+                ctx.shadowBlur = 3;
+                ctx.font = 'bold 60px serif';
+                ctx.fillText(symbols[i % symbols.length], x, canvas.height / 2);
+                ctx.restore();
+
+                // Decorative dots
+                ctx.fillStyle = '#B8860B';
+                ctx.beginPath();
+                ctx.arc(x, canvas.height / 2 - 100, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(x, canvas.height / 2 + 100, 8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Add metallic effect
+            ctx.globalCompositeOperation = 'overlay';
+            const metalGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            metalGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            metalGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+            metalGradient.addColorStop(1, 'rgba(255, 255, 255, 0.3)');
+            ctx.fillStyle = metalGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+
+        // Create end cap texture
+        function createEndCapTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            // Radial gradient for metallic look
+            const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 256);
+            gradient.addColorStop(0, '#FFD700');
+            gradient.addColorStop(0.3, '#DAA520');
+            gradient.addColorStop(0.6, '#B8860B');
+            gradient.addColorStop(1, '#8B6914');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Concentric circles
+            for (let i = 5; i > 0; i--) {
+                ctx.strokeStyle = i % 2 === 0 ? '#654321' : '#8B4513';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, i * 40, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Center ornament
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 40px serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('ॐ', centerX, centerY);
+
+            // Decorative petals
+            for (let i = 0; i < 8; i++) {
+                const angle = (i * Math.PI * 2) / 8;
+                const x = centerX + Math.cos(angle) * 100;
+                const y = centerY + Math.sin(angle) * 100;
+
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                ctx.fillStyle = '#B8860B';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, 35, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        // Main cylinder (prayer wheel body)
+        const cylinderGeometry = new THREE.CylinderGeometry(1.5, 1.5, 3, 64);
+        const cylinderMaterial = new THREE.MeshStandardMaterial({
+            map: createMantraTexture(),
+            metalness: 0.7,
+            roughness: 0.3
+        });
+        const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+        cylinder.castShadow = true;
+        cylinder.receiveShadow = true;
+        prayerWheel.add(cylinder);
+
+        // Top cap
+        const topCapGeometry = new THREE.CylinderGeometry(1.6, 1.5, 0.2, 64);
+        const capMaterial = new THREE.MeshStandardMaterial({
+            map: createEndCapTexture(),
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const topCap = new THREE.Mesh(topCapGeometry, capMaterial);
+        topCap.position.y = 1.6;
+        topCap.castShadow = true;
+        prayerWheel.add(topCap);
+
+        // Bottom cap
+        const bottomCap = new THREE.Mesh(topCapGeometry, capMaterial.clone());
+        bottomCap.position.y = -1.6;
+        bottomCap.castShadow = true;
+        prayerWheel.add(bottomCap);
+
+        // Top ornament (finial)
+        const finialGeometry = new THREE.SphereGeometry(0.3, 32, 32);
+        const finialMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFF4500,
+            metalness: 0.5,
+            roughness: 0.3,
+            emissive: 0xFF4500,
+            emissiveIntensity: 0.2
+        });
+        const finial = new THREE.Mesh(finialGeometry, finialMaterial);
+        finial.position.y = 2;
+        finial.castShadow = true;
+        prayerWheel.add(finial);
+
+        // Top cone
+        const coneGeometry = new THREE.ConeGeometry(0.5, 0.6, 32);
+        const coneMaterial = new THREE.MeshStandardMaterial({
+            color: 0xDAA520,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+        cone.position.y = 2.2;
+        cone.castShadow = true;
+        prayerWheel.add(cone);
+
+        // Handle base
+        const handleBaseGeometry = new THREE.CylinderGeometry(0.15, 0.15, 2, 16);
+        const handleMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8B4513,
+            metalness: 0.3,
+            roughness: 0.7
+        });
+        const handleBase = new THREE.Mesh(handleBaseGeometry, handleMaterial);
+        handleBase.position.set(0, 0, 0);
+        handleBase.rotation.x = Math.PI / 2;
+        handleBase.castShadow = true;
+        prayerWheel.add(handleBase);
+
+        // Handle grip
+        const gripGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.8, 16);
+        const gripMaterial = new THREE.MeshStandardMaterial({
+            color: 0x654321,
+            metalness: 0.2,
+            roughness: 0.8
+        });
+        const grip = new THREE.Mesh(gripGeometry, gripMaterial);
+        grip.position.set(0, 0, -1.5);
+        grip.rotation.x = Math.PI / 2;
+        grip.castShadow = true;
+        prayerWheel.add(grip);
+
+        // Add decorative rings on cylinder
+        for (let i = 0; i < 3; i++) {
+            const ringGeometry = new THREE.TorusGeometry(1.52, 0.04, 16, 100);
+            const ringMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                metalness: 0.9,
+                roughness: 0.1
+            });
+            const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+            ring.position.y = -1 + i;
+            ring.rotation.x = Math.PI / 2;
+            ring.castShadow = true;
+            prayerWheel.add(ring);
+        }
+
+        scene.add(prayerWheel);
+
+        // Rotation animation (clockwise when viewed from top)
+        let rotationSpeed = 0.01;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate clockwise (negative Y rotation)
+            prayerWheel.rotation.y -= rotationSpeed;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+
+        // Start animation
+        animate();
+    </script>
+</body>
+</html>
