@@ -280,7 +280,7 @@
             roughness: 0.7
         });
         const handleBase = new THREE.Mesh(handleBaseGeometry, handleMaterial);
-        handleBase.position.set(0, 0, 0);
+        handleBase.position.set(0, -0.8, 0);
         handleBase.rotation.x = Math.PI / 2;
         handleBase.castShadow = true;
         prayerWheel.add(handleBase);
@@ -293,7 +293,7 @@
             roughness: 0.8
         });
         const grip = new THREE.Mesh(gripGeometry, gripMaterial);
-        grip.position.set(0, 0, -1.5);
+        grip.position.set(0, -0.8, -1.5);
         grip.rotation.x = Math.PI / 2;
         grip.castShadow = true;
         prayerWheel.add(grip);
